@@ -1,0 +1,103 @@
+{
+  "generated_at": "2026-11-04T09:40:44+00:00",
+  "seed": 42,
+  "note": "All data is synthetic.",
+  "rules": [
+    {
+      "id": "DQ001",
+      "name": "Revenue is present",
+      "severity": "critical",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ002",
+      "name": "Revenue is not negative",
+      "severity": "critical",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ003",
+      "name": "No duplicate company-quarter rows",
+      "severity": "critical",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ004",
+      "name": "EBITDA does not exceed revenue",
+      "severity": "warn",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ005",
+      "name": "Reported within 120 days of quarter end",
+      "severity": "warn",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ006",
+      "name": "Currency matches the fund currency",
+      "severity": "critical",
+      "table": "stg_financials"
+    },
+    {
+      "id": "DQ007",
+      "name": "Company belongs to a known fund",
+      "severity": "critical",
+      "table": "stg_companies"
+    },
+    {
+      "id": "DQ008",
+      "name": "NAV is not negative",
+      "severity": "critical",
+      "table": "stg_valuations"
+    },
+    {
+      "id": "DQ009",
+      "name": "NAV is not above 15x cost",
+      "severity": "warn",
+      "table": "stg_valuations"
+    }
+  ],
+  "tables": {
+    "dim_funds": {
+      "from": [
+        "stg_funds"
+      ],
+      "logic": "copy"
+    },
+    "dim_companies": {
+      "from": [
+        "stg_companies",
+        "stg_funds"
+      ],
+      "logic": "exclude companies failing DQ007; add fund name"
+    },
+    "curated_company_quarter": {
+      "from": [
+        "stg_financials",
+        "stg_valuations",
+        "dim_companies"
+      ],
+      "logic": "inner join clean financials and valuations on company and quarter; critical failures quarantined; warnings kept in dq_flags; unrealised_moic = nav / cost"
+    },
+    "curated_fund_metrics": {
+      "from": [
+        "curated_company_quarter",
+        "stg_cash_flows"
+      ],
+      "logic": "TVPI = (NAV + distributions) / paid-in; DPI = distributions / paid-in; at the latest quarter"
+    },
+    "dq_summary": {
+      "from": [
+        "all staging tables"
+      ],
+      "logic": "one row per rule"
+    },
+    "dq_quarantine": {
+      "from": [
+        "all staging tables"
+      ],
+      "logic": "rows failing a critical rule"
+    }
+  }
+}

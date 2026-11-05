@@ -1,0 +1,20 @@
+company_id,fund_id,company_name,sector,region,invest_date,cost_musd
+C01,F1,Aurelia Logistics,Industrials,Europe,2019-01-24,113.18
+C02,F1,Brightpath Software,Technology,North America,2019-11-08,281.29
+C03,F1,Cobalt Renewables,Energy,Asia,2020-10-13,149.31
+C04,F1,Delphi Health,Healthcare,North America,2019-06-27,232.15
+C05,F1,Everline Foods,Consumer,Europe,2020-11-16,206.15
+C06,F1,Fathom Analytics,Technology,Asia,2020-08-10,273.99
+C07,F2,Granite Infrastructure,Infrastructure,North America,2021-01-15,85.26
+C08,F2,Halcyon Pharma,Healthcare,Europe,2021-12-15,187.63
+C09,F2,Ironwood Materials,Industrials,North America,2021-01-22,143.8
+C10,F2,Juniper Fintech,Financials,Europe,2021-07-22,351.25
+C11,F2,Kestrel Components,Industrials,North America,2021-07-08,158.58
+C12,F2,Lumen Telecom,Telecom,Asia,2022-06-18,401.13
+C13,F3,Marlow Education,Consumer,Europe,2023-02-25,540.53
+C14,F3,Nimbus Cloud,Technology,North America,2023-01-12,98.54
+C15,F3,Orchard Retail,Consumer,Asia,2023-01-08,387.29
+C16,F3,Pinnacle Water,Infrastructure,Europe,2023-02-23,301.55
+C17,F3,Quartz Field Services,Energy,North America,2023-01-01,122.66
+C18,F3,Riverbend Hospitality,Consumer,Europe,2023-02-19,73.3
+C99,F9,Zenith Holdings,Industrials,Europe,2022-06-15,40.0

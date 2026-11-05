@@ -1,0 +1,43 @@
+# Data contract for the curated layer. Synthetic data only.
+version: 1
+owner: Data Governance (fictional)
+refresh: rebuilt on demand from raw CSVs; deterministic for a given seed
+tables:
+  dim_funds:
+    description: Fund master.
+    columns: {fund_id: TEXT, fund_name: TEXT, vintage_year: INTEGER, currency: TEXT, fund_size_musd: REAL}
+    primary_key: fund_id
+  dim_companies:
+    description: Portfolio companies that passed DQ007.
+    columns: {company_id: TEXT, company_name: TEXT, fund_id: TEXT, fund_name: TEXT, sector: TEXT, region: TEXT, invest_date: TEXT, cost_musd: REAL}
+    primary_key: company_id
+  curated_company_quarter:
+    description: One row per company and quarter after critical rules; warnings are kept and flagged in dq_flags.
+    columns:
+      company_id: TEXT
+      company_name: TEXT
+      fund_id: TEXT
+      fund_name: TEXT
+      sector: TEXT
+      region: TEXT
+      quarter: TEXT
+      revenue_musd: REAL
+      ebitda_musd: REAL
+      net_debt_musd: REAL
+      nav_musd: REAL
+      cost_musd: REAL
+      unrealised_moic: REAL
+      as_of_date: TEXT
+      dq_flags: TEXT
+    unique: [company_id, quarter]
+  curated_fund_metrics:
+    description: Fund KPIs at the latest quarter. TVPI = (NAV + distributions) / paid-in. DPI = distributions / paid-in.
+    columns: {fund_id: TEXT, fund_name: TEXT, as_of_quarter: TEXT, total_nav_musd: REAL, paid_in_musd: REAL, distributions_musd: REAL, tvpi: REAL, dpi: REAL}
+    primary_key: fund_id
+  dq_summary:
+    description: One row per data quality rule.
+    columns: {rule_id: TEXT, rule_name: TEXT, severity: TEXT, source_table: TEXT, total_rows: INTEGER, failing_rows: INTEGER, pass_rate: REAL, action: TEXT}
+    primary_key: rule_id
+  dq_quarantine:
+    description: Staging rows that failed a critical rule and were excluded from curated tables.
+    columns: {rule_id: TEXT, severity: TEXT, source_table: TEXT, source_rowid: INTEGER, company_id: TEXT, quarter: TEXT, detail: TEXT}
