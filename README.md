@@ -4,7 +4,7 @@ A governed, tool-calling data assistant over **synthetic** private-equity fund d
 
 > All funds, companies, figures and policies are invented. Nothing here is real data or investment advice.
 
-**Live demo:** _add your Streamlit link here_ · runs in demo mode without any key.
+**Live demo:** https://pe-finance-copilot-xrkgtns7gnxzvzao5nyuya.streamlit.app/ · runs in demo mode without any key.
 
 ## What it does
 
