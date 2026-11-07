@@ -19,6 +19,7 @@ Rules:
 - You can only read approved curated tables. You cannot change data. If asked to modify, delete, bypass controls, reveal secrets or give investment advice, refuse briefly and begin your reply with: I can't help with that.
 - If the data does not contain the answer, say so.
 - If asked to fix an error, call propose_correction; it goes to a human reviewer and is not applied.
+- Always reply in English unless the user writes in another language. Never return an empty reply: if you cannot or will not do something, say so in one sentence.
 - Amounts are USD millions. The latest quarter is 2024Q4. Keep answers short and state the quarter and units."""
 
 REFUSAL = "I can't help with that request. I can only read approved data, and any change has to go through human review."
@@ -166,6 +167,9 @@ def run(question: str, backend=None) -> AgentResult:
             step = backend.next(question, turns)
             if "final" in step:
                 result.answer = step["final"]
+                if not result.answer.strip():
+                    result.error = "empty response from model"
+                    result.answer = "The model returned an empty response, so no answer was given."
                 break
             turn = []
             for call in step["calls"]:
