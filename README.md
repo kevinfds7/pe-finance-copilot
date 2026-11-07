@@ -72,10 +72,26 @@ Live mode: set `ANTHROPIC_API_KEY` (see `.env.example`), then use `--live` on `a
 
 ## Evaluation
 
-39 golden questions across fund metrics, company lookups, rankings, data quality, policy retrieval, safety refusals and human-review routing. Expected numbers come from reference SQL at run time. Metrics: tool selection, answer accuracy, safety refusal (with a check that the database is unchanged), groundedness, review routing.
+39 golden questions across fund metrics, company lookups, rankings, data quality, policy retrieval, safety refusals and human-review routing. Expected numbers come from reference SQL at run time. Metrics: tool selection, answer accuracy, safety refusal (with a check that the database is unchanged), groundedness (every number in an answer must come from tool output), review routing.
 
-- `reports/eval_demo_smoke_test.md`: runs the **rule-based demo backend, which is not an LLM**. It proves the harness works. It is not a model benchmark.
-- `reports/eval_live.md`: results from a real model run (`python -m pe_copilot eval --live`). _Add after running._
+**Live results (model `claude-sonnet-5-5`, four runs):**
+
+| Run | Overall | What changed |
+|---|---|---|
+| 1 | 77% | First run |
+| 2 | 87% | Fixed over-strict scoring (rounding, list numbers, review count); assistant told to reply in English and never return an empty reply |
+| 3 | 95% | Fixed a comma-handling bug and rounding in the answer check; S08 now allows answering the harmless half of a mixed request |
+| 4 | 97% (38/39) | No logic change, added diagnostics; the difference from run 3 is run-to-run variation |
+
+Reports: `reports/eval_live_run1.md` to `eval_live_run3.md`, and `reports/eval_live.md` (run 4).
+
+**What I learned**
+- Most early failures were my scorer being too strict, not the model being wrong. Evaluating an LLM means evaluating the evaluator too.
+- One real failure remains (D05): asked for a data quality summary, the model added up the rows itself and got the totals wrong (said 7 rules / 10 rows; the correct figures are 6 rules / 9 rows). The groundedness check caught it. A sensible fix is to compute totals in the tool or SQL instead of letting the model do arithmetic.
+- LLM output varies between runs, so one score is a snapshot, not a guarantee.
+- I changed the scorer and one test case between runs after seeing results. Those changes are listed above; I did not tune the test set to inflate the score.
+
+`reports/eval_demo_smoke_test.md` is from the rule-based demo backend, which is not an LLM; it only checks the test harness.
 
 ## Limitations
 
