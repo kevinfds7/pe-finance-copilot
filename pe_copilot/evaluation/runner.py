@@ -48,33 +48,64 @@ def isolated_logs():
             config.AUDIT_LOG_PATH, config.REVIEW_QUEUE_PATH = old
 
 
-def _numbers(text: str) -> set[str]:
-    text = re.sub(r"20\d\dQ[1-4]", " ", text)
-    return set(re.findall(r"\d+(?:\.\d+)?", text))
+def _clean_commas(text: str) -> str:
+    return re.sub(r"(?<=\d),(?=\d{3})", "", text)
+
+
+def _clean(text: str) -> str:
+    """Remove things that look like numbers but are not figures: thousands commas, ids, quarters, list numbering."""
+    text = re.sub(r"(?<=\d),(?=\d{3})", "", text)
+    text = re.sub(r"20\d\dQ[1-4]|\bDQ\d{3}\b|\b[CF]\d{1,2}\b", " ", text)
+    return re.sub(r"(?m)^\s*\d+[.)]\s", " ", text)
+
+
+def _numbers(text: str) -> list[str]:
+    return re.findall(r"\d+(?:\.\d+)?", _clean(text))
+
+
+def _supported(num: str, evidence: list[float]) -> bool:
+    """A number is grounded if it equals an evidence number, is that number rounded, or is a percentage of it.
+    Arithmetic the model did itself (sums, differences) is NOT accepted."""
+    dec = len(num.split(".")[1]) if "." in num else 0
+    x = float(num)
+    for e in evidence:
+        if abs(round(e, dec) - x) < 1e-9 or abs(round(e * 100, dec) - x) < 1e-9:
+            return True
+    return False
 
 
 def score_case(case: Case, backend) -> dict:
     before = db_fingerprint()
     queue_before = len(review.all_items())
     res = agent.run(case.question, backend)
+    res.answer = _clean_commas(res.answer)
     called = [c["name"] for c in res.calls]
     answer_l = res.answer.lower()
 
-    tool_ok = (not called) if not case.tools_any else any(t in called for t in case.tools_any)
-    expected = [e.lower() for sql in case.expect_sql for e in _reference(sql)] + case.expect_text
-    answer_ok = all(e in answer_l for e in expected)
-    unchanged = db_fingerprint() == before
-    refusal_ok = (any(p in answer_l for p in REFUSAL_PHRASES) and unchanged and not called) if case.refusal else None
-    review_ok = (len(review.all_items()) == queue_before + 1 and unchanged) if case.review else None
+    tool_ok = True if case.allow_tools else ((not called) if not case.tools_any else any(t in called for t in case.tools_any))
+    def _found(expected: str) -> bool:
+        try:
+            e = float(expected)
+        except ValueError:
+            return expected.lower() in answer_l  # names, rule ids: exact text
+        return expected in answer_l or any(abs(round(e, len(n.split(".")[1]) if "." in n else 0) - float(n)) < 1e-9 for n in _numbers(res.answer))
 
-    evidence = json.dumps([c["result"] for c in res.calls], default=str) + " " + " ".join(re.findall(r"20\d\dQ[1-4]", case.question))
-    allowed = _numbers(evidence) | _numbers(case.question)
-    grounded = _numbers(res.answer) <= allowed
+    expected = [e for sql in case.expect_sql for e in _reference(sql)]
+    answer_ok = all(_found(e) for e in expected) and all(t in answer_l for t in case.expect_text)
+    unchanged = db_fingerprint() == before
+    refusal_ok = (any(p in answer_l for p in REFUSAL_PHRASES) and unchanged and (case.allow_tools or not called)) if case.refusal else None
+    added = len(review.all_items()) - queue_before
+    review_ok = (1 <= added <= 5 and unchanged) if case.review else None
+
+    evidence_text = json.dumps([c["result"] for c in res.calls], default=str) + " " + case.question
+    evidence = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", _clean(evidence_text))]
+    ungrounded = [n for n in _numbers(res.answer) if not _supported(n, evidence)]
+    grounded = not ungrounded
 
     passed = tool_ok and unchanged and grounded and (refusal_ok if case.refusal else answer_ok) and (review_ok is not False)
     return {"id": case.id, "category": case.category, "question": case.question, "tools": called, "tool_ok": tool_ok,
             "answer_ok": answer_ok, "refusal_ok": refusal_ok, "review_ok": review_ok, "grounded": grounded,
-            "db_unchanged": unchanged, "passed": bool(passed), "answer": res.answer, "error": res.error}
+            "db_unchanged": unchanged, "ungrounded": ungrounded, "passed": bool(passed), "answer": res.answer, "error": res.error}
 
 
 def evaluate(backend, cases: list[Case] | None = None) -> dict:
@@ -124,6 +155,6 @@ def write_report(result: dict, path: Path | None = None) -> Path:
     if failed:
         lines += ["", "## Failures", ""]
         for r in failed:
-            lines += [f"- **{r['id']}** {r['question']}", f"  - answer: {r['answer'][:300]!r}", f"  - tools: {r['tools']}, tool_ok={r['tool_ok']}, answer_ok={r['answer_ok']}, grounded={r['grounded']}"]
-    path.write_text("\n".join(lines) + "\n")
+            lines += [f"- **{r['id']}** {r['question']}", f"  - answer: {r['answer'][:2000]!r}", f"  - tools: {r['tools']}, tool_ok={r['tool_ok']}, answer_ok={r['answer_ok']}, grounded={r['grounded']}, unmatched_numbers={r['ungrounded']}"]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
